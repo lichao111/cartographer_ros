@@ -139,21 +139,21 @@ Node::Node(
           kScanMatchedPointCloudTopic, kLatestOnlyPublisherQueueSize);
 
   wall_timers_.push_back(node_handle_.createWallTimer(
-      ::ros::WallDuration(node_options_.submap_publish_period_sec),
+      ::ros::WallDuration(node_options_.submap_publish_period_sec), // 300ms发布一次
       &Node::PublishSubmapList, this));
   if (node_options_.pose_publish_period_sec > 0) {
     publish_local_trajectory_data_timer_ = node_handle_.createTimer(
-        ::ros::Duration(node_options_.pose_publish_period_sec),
+        ::ros::Duration(node_options_.pose_publish_period_sec), // 5ms发布一次
         &Node::PublishLocalTrajectoryData, this);
   }
   wall_timers_.push_back(node_handle_.createWallTimer(
-      ::ros::WallDuration(node_options_.trajectory_publish_period_sec),
+      ::ros::WallDuration(node_options_.trajectory_publish_period_sec), // 30ms 发布一次
       &Node::PublishTrajectoryNodeList, this));
   wall_timers_.push_back(node_handle_.createWallTimer(
-      ::ros::WallDuration(node_options_.trajectory_publish_period_sec),
+      ::ros::WallDuration(node_options_.trajectory_publish_period_sec), // 30ms 发布一次
       &Node::PublishLandmarkPosesList, this));
   wall_timers_.push_back(node_handle_.createWallTimer(
-      ::ros::WallDuration(kConstraintPublishPeriodSec),
+      ::ros::WallDuration(kConstraintPublishPeriodSec), // 500ms 发布一次
       &Node::PublishConstraintList, this));
 }
 
@@ -211,12 +211,15 @@ void Node::AddExtrapolator(const int trajectory_id,
 void Node::AddSensorSamplers(const int trajectory_id,
                              const TrajectoryOptions& options) {
   CHECK(sensor_samplers_.count(trajectory_id) == 0);
-  sensor_samplers_.emplace(
-      std::piecewise_construct, std::forward_as_tuple(trajectory_id),
-      std::forward_as_tuple(
-          options.rangefinder_sampling_ratio, options.odometry_sampling_ratio,
-          options.fixed_frame_pose_sampling_ratio, options.imu_sampling_ratio,
-          options.landmarks_sampling_ratio));
+  sensor_samplers_.emplace( // std::piecewise_construct 可以起到分别构造key和value的作用， 防止不必要临时对象的构造及拷贝
+      std::piecewise_construct, std::forward_as_tuple(trajectory_id), // key 
+      std::forward_as_tuple( // value
+          options.rangefinder_sampling_ratio,  //测距仪消息的固定比率采样。
+          options.odometry_sampling_ratio,     //里程计消息的固定比率采样
+          options.fixed_frame_pose_sampling_ratio, //固定帧消息的固定比率采样
+          options.imu_sampling_ratio, //IMU消息的固定比率采样
+          options.landmarks_sampling_ratio)); //地标消息的固定比率采样
+
 }
 
 void Node::PublishLocalTrajectoryData(const ::ros::TimerEvent& timer_event) {
@@ -358,15 +361,15 @@ Node::ComputeExpectedSensorIds(const TrajectoryOptions& options) const {
   using SensorType = SensorId::SensorType;
   std::set<SensorId> expected_topics;
   // Subscribe to all laser scan, multi echo laser scan, and point cloud topics.
-  for (const std::string& topic :
+  for (const std::string& topic : // topic  = /scan
        ComputeRepeatedTopicNames(kLaserScanTopic, options.num_laser_scans)) {
     expected_topics.insert(SensorId{SensorType::RANGE, topic});
   }
-  for (const std::string& topic : ComputeRepeatedTopicNames(
+  for (const std::string& topic : ComputeRepeatedTopicNames( // topic = /echoes
            kMultiEchoLaserScanTopic, options.num_multi_echo_laser_scans)) {
     expected_topics.insert(SensorId{SensorType::RANGE, topic});
   }
-  for (const std::string& topic :
+  for (const std::string& topic : // topic  = /points2
        ComputeRepeatedTopicNames(kPointCloud2Topic, options.num_point_clouds)) {
     expected_topics.insert(SensorId{SensorType::RANGE, topic});
   }
@@ -415,15 +418,15 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
                              const int trajectory_id) {
   for (const std::string& topic :
        ComputeRepeatedTopicNames(kLaserScanTopic, options.num_laser_scans)) {
-    subscribers_[trajectory_id].push_back(
+    subscribers_[trajectory_id].push_back( // 订阅激光雷达消息
         {SubscribeWithHandler<sensor_msgs::LaserScan>(
              &Node::HandleLaserScanMessage, trajectory_id, topic, &node_handle_,
              this),
          topic});
   }
-  for (const std::string& topic : ComputeRepeatedTopicNames(
+  for (const std::string& topic : ComputeRepeatedTopicNames( 
            kMultiEchoLaserScanTopic, options.num_multi_echo_laser_scans)) {
-    subscribers_[trajectory_id].push_back(
+    subscribers_[trajectory_id].push_back( // 订阅多线激光雷达消息 目前无
         {SubscribeWithHandler<sensor_msgs::MultiEchoLaserScan>(
              &Node::HandleMultiEchoLaserScanMessage, trajectory_id, topic,
              &node_handle_, this),
@@ -431,7 +434,7 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
   }
   for (const std::string& topic :
        ComputeRepeatedTopicNames(kPointCloud2Topic, options.num_point_clouds)) {
-    subscribers_[trajectory_id].push_back(
+    subscribers_[trajectory_id].push_back( // 订阅点云消息 目前无
         {SubscribeWithHandler<sensor_msgs::PointCloud2>(
              &Node::HandlePointCloud2Message, trajectory_id, topic,
              &node_handle_, this),
@@ -459,13 +462,13 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
          kOdometryTopic});
   }
   if (options.use_nav_sat) {
-    subscribers_[trajectory_id].push_back(
+    subscribers_[trajectory_id].push_back( //GPS 目前不用
         {SubscribeWithHandler<sensor_msgs::NavSatFix>(
              &Node::HandleNavSatFixMessage, trajectory_id, kNavSatFixTopic,
              &node_handle_, this),
          kNavSatFixTopic});
   }
-  if (options.use_landmarks) {
+  if (options.use_landmarks) { // 地标消息 目前不用
     subscribers_[trajectory_id].push_back(
         {SubscribeWithHandler<cartographer_ros_msgs::LandmarkList>(
              &Node::HandleLandmarkMessage, trajectory_id, kLandmarkTopic,
@@ -863,6 +866,9 @@ void Node::LoadState(const std::string& state_filename,
   map_builder_bridge_.LoadState(state_filename, load_frozen_state);
 }
 
+/***
+ * 检查当前订阅的topic是否有对应的发布者，如果没有则打印警告信息
+ */
 void Node::MaybeWarnAboutTopicMismatch(
     const ::ros::WallTimerEvent& unused_timer_event) {
   ::ros::master::V_TopicInfo ros_topics;

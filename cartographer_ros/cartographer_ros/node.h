@@ -222,7 +222,7 @@ class Node {
 
   // We have to keep the timer handles of ::ros::WallTimers around, otherwise
   // they do not fire.
-  std::vector<::ros::WallTimer> wall_timers_;
+  std::vector<::ros::WallTimer> wall_timers_; // 定时器 用于定时发布一些状态
 
   // The timer for publishing local trajectory data (i.e. pose transforms and
   // range data point clouds) is a regular timer which is not triggered when

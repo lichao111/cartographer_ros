@@ -49,7 +49,7 @@ std::unique_ptr<::cartographer::transform::Rigid3d> TfBridge::LookupToTracking(
         ToRigid3d(buffer_->lookupTransform(tracking_frame_, frame_id,
                                            requested_time, timeout)));
   } catch (const tf2::TransformException& ex) {
-    LOG(WARNING) << ex.what();
+    LOG(WARNING) << ex.what(); //如果这里报错，很可能缺少tf的转换关系
   }
   return nullptr;
 }

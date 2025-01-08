@@ -195,7 +195,7 @@ void SensorBridge::HandleMultiEchoLaserScanMessage(
     const sensor_msgs::MultiEchoLaserScan::ConstPtr& msg) {
   carto::sensor::PointCloudWithIntensities point_cloud;
   carto::common::Time time;
-  std::tie(point_cloud, time) = ToPointCloudWithIntensities(*msg);
+  std::tie(point_cloud, time) = ToPointCloudWithIntensities(*msg); // 将雷达数据转换点云数据
   HandleLaserScan(sensor_id, time, msg->header.frame_id, point_cloud);
 }
 

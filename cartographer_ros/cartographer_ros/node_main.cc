@@ -22,7 +22,7 @@
 #include "gflags/gflags.h"
 #include "tf2_ros/transform_listener.h"
 
-DEFINE_bool(collect_metrics, false,
+DEFINE_bool(collect_metrics, true,
             "Activates the collection of runtime metrics. If activated, the "
             "metrics can be accessed via a ROS service.");
 DEFINE_string(configuration_directory, "",
@@ -59,7 +59,7 @@ void Run() {
   auto map_builder =
       cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
   Node node(node_options, std::move(map_builder), &tf_buffer,
-            FLAGS_collect_metrics);
+            FLAGS_collect_metrics); // node初始化完成后，完成了publibsher的初始化
   if (!FLAGS_load_state_filename.empty()) {
     node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
   }
@@ -81,7 +81,7 @@ void Run() {
 
 }  // namespace
 }  // namespace cartographer_ros
-
+// 函数入口
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
