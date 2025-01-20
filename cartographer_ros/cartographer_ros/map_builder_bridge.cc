@@ -451,7 +451,7 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
     visualization_msgs::Marker *constraint_marker, *residual_marker;
     std_msgs::ColorRGBA color_constraint, color_residual;
     if (constraint.tag ==
-        cartographer::mapping::PoseGraphInterface::Constraint::INTRA_SUBMAP) {
+        cartographer::mapping::PoseGraphInterface::Constraint::INTRA_SUBMAP) { // 内部约束
       constraint_marker = &constraint_intra_marker;
       residual_marker = &residual_intra_marker;
       // Color mapping for submaps of various trajectories - add trajectory id
@@ -462,7 +462,7 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
                                      constraint.submap_id.trajectory_id + 25));
       color_residual.a = 1.0;
       color_residual.r = 1.0;
-    } else {
+    } else {  // 外部约束
       if (constraint.node_id.trajectory_id ==
           constraint.submap_id.trajectory_id) {
         constraint_marker = &constraint_inter_same_trajectory_marker;
@@ -478,7 +478,7 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
         color_constraint.r = 1.0;
         color_constraint.g = 165. / 255.;
       }
-      // Bright cyan
+      // Bright cyan  亮青色
       color_residual.a = 1.0;
       color_residual.b = color_residual.g = 1.0;
     }
@@ -501,14 +501,14 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
     const Rigid3d constraint_pose = submap_pose * constraint.pose.zbar_ij;
 
     constraint_marker->points.push_back(
-        ToGeometryMsgPoint(submap_pose.translation()));
+        ToGeometryMsgPoint(submap_pose.translation())); // submap的global位姿
     constraint_marker->points.push_back(
-        ToGeometryMsgPoint(constraint_pose.translation()));
+        ToGeometryMsgPoint(constraint_pose.translation())); // 约束对应node的位姿， 与submap的画一条线，代表约束
 
     residual_marker->points.push_back(
-        ToGeometryMsgPoint(constraint_pose.translation()));
+        ToGeometryMsgPoint(constraint_pose.translation())); // 约束对应node的位姿 （这是未经过后端优化的）
     residual_marker->points.push_back(
-        ToGeometryMsgPoint(trajectory_node_pose.translation()));
+        ToGeometryMsgPoint(trajectory_node_pose.translation())); // node的位姿，这是经过后端优化的。 两者的连线用来代表残差
   }
 
   constraint_list.markers.push_back(constraint_intra_marker);
