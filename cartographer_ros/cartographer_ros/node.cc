@@ -41,6 +41,7 @@
 #include "cartographer_ros_msgs/StatusCode.h"
 #include "cartographer_ros_msgs/StatusResponse.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "glog/logging.h"
 #include "nav_msgs/Odometry.h"
 #include "ros/serialization.h"
@@ -472,6 +473,11 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
              &node_handle_, this),
          kLandmarkTopic});
   }
+  subscribers_[trajectory_id].push_back(
+      {SubscribeWithHandler<geometry_msgs::PoseWithCovarianceStamped>(
+           &Node::HandleInitialPoseMessage, trajectory_id, kInitialPoseTopic,
+           &node_handle_, this),
+       kInitialPoseTopic});
 }
 
 bool Node::ValidateTrajectoryOptions(const TrajectoryOptions& options) {
@@ -618,6 +624,7 @@ void Node::StartTrajectoryWithDefaultTopics(const TrajectoryOptions& options) {
   absl::MutexLock lock(&mutex_);
   CHECK(ValidateTrajectoryOptions(options));
   AddTrajectory(options);
+  default_trajectory_options_ = std::make_unique<TrajectoryOptions>(options);
 }
 
 std::vector<
@@ -798,6 +805,41 @@ void Node::HandleLandmarkMessage(
   }
   map_builder_bridge_.sensor_bridge(trajectory_id)
       ->HandleLandmarkMessage(sensor_id, msg);
+}
+
+void Node::HandleInitialPoseMessage(
+    const int trajectory_id, const std::string& sensor_id,
+    const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg) {
+  LOG(INFO) << "Received initial pose for trajectory " << trajectory_id << ".";
+
+  // check pose
+  const auto pose = ToRigid3d(msg->pose.pose);
+  if (!pose.IsValid()) {
+    LOG(ERROR) << "Invalid pose argument. Orientation quaternion must be normalized.";
+    return;
+  }
+
+  // finish all active trajectory
+  FinishAllTrajectories();
+
+  // assign initial pose
+  *default_trajectory_options_->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose()
+    = cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
+
+  // start trajectory
+  if (!ValidateTrajectoryOptions(*default_trajectory_options_)) {
+    LOG(ERROR) << "Invalid trajectory options.";
+    return;
+  }
+  else if (!ValidateTopicNames(*default_trajectory_options_)) {
+    LOG(ERROR) << "Topics are already used by another trajectory.";
+    return;
+  }
+  else {
+    AddTrajectory(*default_trajectory_options_);
+  }
+  LOG(INFO) << "Started trajectory " << trajectory_id << " with initial pose.";
+
 }
 
 void Node::HandleImuMessage(const int trajectory_id,

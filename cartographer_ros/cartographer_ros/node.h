@@ -50,6 +50,7 @@
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "tf2_ros/transform_broadcaster.h"
+#include "geometry_msgs/PoseWithCovarianceStamped.h"
 
 namespace cartographer_ros {
 
@@ -99,6 +100,9 @@ class Node {
   void HandleLandmarkMessage(
       int trajectory_id, const std::string& sensor_id,
       const cartographer_ros_msgs::LandmarkList::ConstPtr& msg);
+  void HandleInitialPoseMessage(
+    const int trajectory_id, const std::string& sensor_id,
+    const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
   void HandleImuMessage(int trajectory_id, const std::string& sensor_id,
                         const sensor_msgs::Imu::ConstPtr& msg);
   void HandleLaserScanMessage(int trajectory_id, const std::string& sensor_id,
@@ -229,6 +233,7 @@ class Node {
   // simulation time is standing still. This prevents overflowing the transform
   // listener buffer by publishing the same transforms over and over again.
   ::ros::Timer publish_local_trajectory_data_timer_;
+  std::unique_ptr<TrajectoryOptions> default_trajectory_options_;
 };
 
 }  // namespace cartographer_ros
