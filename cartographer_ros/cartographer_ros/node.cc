@@ -822,6 +822,11 @@ void Node::HandleInitialPoseMessage(
   // finish all active trajectory
   FinishAllTrajectories();
 
+  if(default_trajectory_options_ == nullptr) {
+    LOG(ERROR) << "No default trajectory options set.";
+    return;
+  }
+
   // assign initial pose
   *default_trajectory_options_->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose()
     = cartographer::transform::ToProto(cartographer_ros::ToRigid3d(msg->pose.pose));
