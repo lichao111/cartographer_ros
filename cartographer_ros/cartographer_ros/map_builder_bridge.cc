@@ -127,10 +127,11 @@ int MapBuilderBridge::AddTrajectory(
       [this](const int trajectory_id, const ::cartographer::common::Time time,
              const Rigid3d local_pose,
              ::cartographer::sensor::RangeData range_data_in_local,
+             bool trajectory_localization_lost,
              const std::unique_ptr<
                  const ::cartographer::mapping::TrajectoryBuilderInterface::
                      InsertionResult>) {
-        OnLocalSlamResult(trajectory_id, time, local_pose, range_data_in_local);
+        OnLocalSlamResult(trajectory_id, time, local_pose, range_data_in_local,trajectory_localization_lost);
       });
   LOG(INFO) << "Added trajectory with ID '" << trajectory_id << "'.";
 
@@ -248,13 +249,25 @@ MapBuilderBridge::GetLocalTrajectoryData() {
 
     // Make sure there is a trajectory with 'trajectory_id'.
     CHECK_EQ(trajectory_options_.count(trajectory_id), 1);
+    bool trajectory_localization_lost = false;
+    {
+      absl::MutexLock lock(&mutex_);
+      if (trajectory_localization_lost_.count(trajectory_id) == 0) {
+        trajectory_localization_lost = false;
+      } else {
+        trajectory_localization_lost =
+            trajectory_localization_lost_.at(trajectory_id);
+      }
+    }
     local_trajectory_data[trajectory_id] = {
         local_slam_data,
         map_builder_->pose_graph()->GetLocalToGlobalTransform(trajectory_id),
         sensor_bridge.tf_bridge().LookupToTracking(
             local_slam_data->time,
             trajectory_options_[trajectory_id].published_frame),
-        trajectory_options_[trajectory_id]};
+        trajectory_options_[trajectory_id],
+        trajectory_localization_lost
+      };
   }
   return local_trajectory_data;
 }
@@ -527,13 +540,16 @@ SensorBridge* MapBuilderBridge::sensor_bridge(const int trajectory_id) {
 void MapBuilderBridge::OnLocalSlamResult(
     const int trajectory_id, const ::cartographer::common::Time time,
     const Rigid3d local_pose,
-    ::cartographer::sensor::RangeData range_data_in_local) {
+    ::cartographer::sensor::RangeData range_data_in_local,
+    bool trajectory_localization_lost
+  ) {
   std::shared_ptr<const LocalTrajectoryData::LocalSlamData> local_slam_data =
       std::make_shared<LocalTrajectoryData::LocalSlamData>(
           LocalTrajectoryData::LocalSlamData{time, local_pose,
                                              std::move(range_data_in_local)});
   absl::MutexLock lock(&mutex_);
   local_slam_data_[trajectory_id] = std::move(local_slam_data);
+  trajectory_localization_lost_[trajectory_id] = trajectory_localization_lost;
 }
 
 }  // namespace cartographer_ros

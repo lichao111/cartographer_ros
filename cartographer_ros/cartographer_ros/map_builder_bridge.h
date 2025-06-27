@@ -62,6 +62,7 @@ class MapBuilderBridge {
     cartographer::transform::Rigid3d local_to_map;
     std::unique_ptr<cartographer::transform::Rigid3d> published_to_tracking;
     TrajectoryOptions trajectory_options;
+    bool localization_lost = false;
   };
 
   MapBuilderBridge(
@@ -106,7 +107,8 @@ class MapBuilderBridge {
   void OnLocalSlamResult(const int trajectory_id,
                          const ::cartographer::common::Time time,
                          const ::cartographer::transform::Rigid3d local_pose,
-                         ::cartographer::sensor::RangeData range_data_in_local)
+                         ::cartographer::sensor::RangeData range_data_in_local,
+                        bool trajectory_localization_lost)
       LOCKS_EXCLUDED(mutex_);
 
   absl::Mutex mutex_;
@@ -123,6 +125,7 @@ class MapBuilderBridge {
   std::unordered_map<int, TrajectoryOptions> trajectory_options_;
   std::unordered_map<int, std::unique_ptr<SensorBridge>> sensor_bridges_;
   std::unordered_map<int, size_t> trajectory_to_highest_marker_id_;
+  std::unordered_map<int, bool> trajectory_localization_lost_ GUARDED_BY(mutex_);
 };
 
 }  // namespace cartographer_ros

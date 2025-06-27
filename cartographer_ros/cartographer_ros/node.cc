@@ -48,6 +48,7 @@
 #include "sensor_msgs/PointCloud2.h"
 #include "tf2_eigen/tf2_eigen.h"
 #include "visualization_msgs/MarkerArray.h"
+#include "std_msgs/Int8.h"
 
 namespace cartographer_ros {
 
@@ -138,6 +139,10 @@ Node::Node(
   scan_matched_point_cloud_publisher_ =
       node_handle_.advertise<sensor_msgs::PointCloud2>(
           kScanMatchedPointCloudTopic, kLatestOnlyPublisherQueueSize);
+
+  trajectory_localization_lost_publisher_ =
+      node_handle_.advertise<std_msgs::Int8>(
+        kTrajectoryLocalizationLostTopic,kLatestOnlyPublisherQueueSize);
 
   wall_timers_.push_back(node_handle_.createWallTimer(
       ::ros::WallDuration(node_options_.submap_publish_period_sec),
@@ -246,6 +251,15 @@ void Node::PublishLocalTrajectoryData(const ::ros::TimerEvent& timer_event) {
             node_options_.map_frame,
             carto::sensor::TransformTimedPointCloud(
                 point_cloud, trajectory_data.local_to_map.cast<float>())));
+      }
+
+      if (trajectory_localization_lost_publisher_.getNumSubscribers() > 0) {
+        std_msgs::Int8 trajectory_localization_lost_msg;
+        trajectory_localization_lost_msg.data = trajectory_data.localization_lost
+            ? 1
+            : 0;  // 1 for lost, 0 for not lost.
+        trajectory_localization_lost_publisher_.publish(
+            trajectory_localization_lost_msg);
       }
       extrapolator.AddPose(trajectory_data.local_slam_data->time,
                            trajectory_data.local_slam_data->local_pose);
