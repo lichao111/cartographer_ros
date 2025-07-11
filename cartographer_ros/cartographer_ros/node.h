@@ -51,6 +51,7 @@
 #include "sensor_msgs/PointCloud2.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
+#include "std_msgs/Empty.h"
 
 namespace cartographer_ros {
 
@@ -103,6 +104,11 @@ class Node {
   void HandleInitialPoseMessage(
     const int trajectory_id, const std::string& sensor_id,
     const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
+
+  void HandleGlobalRelocalizationMessage(
+        const int trajectory_id, const std::string& sensor_id,
+        const std_msgs::Empty::ConstPtr& msg);
+
   void HandleImuMessage(int trajectory_id, const std::string& sensor_id,
                         const sensor_msgs::Imu::ConstPtr& msg);
   void HandleLaserScanMessage(int trajectory_id, const std::string& sensor_id,
@@ -197,6 +203,7 @@ class Node {
   std::vector<::ros::ServiceServer> service_servers_;
   ::ros::Publisher scan_matched_point_cloud_publisher_;
   ::ros::Publisher trajectory_localization_lost_publisher_;
+  ::ros::Publisher global_relocalization_status_publisher_;
 
   struct TrajectorySensorSamplers {
     TrajectorySensorSamplers(const double rangefinder_sampling_ratio,

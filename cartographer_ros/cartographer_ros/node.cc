@@ -144,6 +144,10 @@ Node::Node(
       node_handle_.advertise<std_msgs::Int8>(
         kTrajectoryLocalizationLostTopic,kLatestOnlyPublisherQueueSize);
 
+  global_relocalization_status_publisher_ =
+      node_handle_.advertise<std_msgs::Int8>(
+          kGlobalRelocalizationStatusTopic, kLatestOnlyPublisherQueueSize);
+
   wall_timers_.push_back(node_handle_.createWallTimer(
       ::ros::WallDuration(node_options_.submap_publish_period_sec),
       &Node::PublishSubmapList, this));
@@ -492,6 +496,12 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
            &Node::HandleInitialPoseMessage, trajectory_id, kInitialPoseTopic,
            &node_handle_, this),
        kInitialPoseTopic});
+
+  subscribers_[trajectory_id].push_back(
+      {SubscribeWithHandler<std_msgs::Empty>(
+           &Node::HandleGlobalRelocalizationMessage, trajectory_id,
+           kGlobalRelocalizationTopic, &node_handle_, this),
+       kGlobalRelocalizationTopic});
 }
 
 bool Node::ValidateTrajectoryOptions(const TrajectoryOptions& options) {
@@ -955,4 +965,76 @@ void Node::MaybeWarnAboutTopicMismatch(
   }
 }
 
-}  // namespace cartographer_ros
+void Node::HandleGlobalRelocalizationMessage(
+        const int trajectory_id, const std::string& sensor_id,
+        const std_msgs::Empty::ConstPtr& msg){
+  LOG(INFO) << "start handling global relocalization for trajectory "
+            << trajectory_id << ".";
+  absl::MutexLock lock(&mutex_);
+  auto start_time = std::chrono::steady_clock::now();
+  auto best_pose_estimate = map_builder_bridge_.HandlerGlobalRelocalization(trajectory_id);
+  auto end_time = std::chrono::steady_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+  LOG(INFO) << "global relocalization for trajectory " << trajectory_id
+            << ". duration: " << duration.count() << " ms.";
+
+  if (not best_pose_estimate.has_value()) {
+    LOG(ERROR) << "global relocalization failed for trajectory " << trajectory_id
+               << ". no best pose estimate found.";
+    if (global_relocalization_status_publisher_.getNumSubscribers() > 0) {
+      std_msgs::Int8 global_relocalization_status_msg;
+      global_relocalization_status_msg.data = kGlobalRelocalizationFailed;
+      global_relocalization_status_publisher_.publish(global_relocalization_status_msg);
+    }
+    return;
+  }            
+  {
+    for (const auto& entry : map_builder_bridge_.GetTrajectoryStates()) {
+      if (entry.second == TrajectoryState::ACTIVE) {
+        const int trajectory_id = entry.first;
+        CHECK_EQ(FinishTrajectoryUnderLock(trajectory_id).code,
+                cartographer_ros_msgs::StatusCode::OK);
+      }
+    }
+  }
+  if(default_trajectory_options_ == nullptr) {
+    LOG(ERROR) << "no default trajectory options set.";
+    return;
+  }
+
+  // transfrom best_pose_estimate from transform::Rigid2d to transform::Rigid3d
+  ::cartographer::transform::Rigid3d best_pose_estimate_3d;
+  if (node_options_.map_builder_options.use_trajectory_builder_2d()) {
+    best_pose_estimate_3d = ::cartographer::transform::Embed3D(best_pose_estimate.value());
+  }
+  else if (node_options_.map_builder_options.use_trajectory_builder_3d()) {
+    best_pose_estimate_3d = ::cartographer::transform::Embed3D(best_pose_estimate.value());
+    LOG(ERROR) << "Global relocalization is not supported for 3D trajectories yet.";
+  }
+  else {
+    LOG(ERROR) << "Unknown trajectory builder options.";
+    return;
+  }
+  *default_trajectory_options_->trajectory_builder_options.mutable_initial_trajectory_pose()->mutable_relative_pose()
+    = ::cartographer::transform::ToProto(best_pose_estimate_3d);
+  // start trajectory
+  if (!ValidateTrajectoryOptions(*default_trajectory_options_)) {
+    LOG(ERROR) << "invalid trajectory options.";
+    return;
+  }
+  else if (!ValidateTopicNames(*default_trajectory_options_)) {
+    LOG(ERROR) << "topics are already used by another trajectory.";
+    return;
+  }
+  else {
+    AddTrajectory(*default_trajectory_options_);
+  }
+
+  if (global_relocalization_status_publisher_.getNumSubscribers() > 0) {
+      std_msgs::Int8 global_relocalization_status_msg;
+      global_relocalization_status_msg.data = kGlobalRelocalizationSuccess;
+    global_relocalization_status_publisher_.publish(global_relocalization_status_msg);
+  }
+  LOG(INFO) << "global relocalization success";
+} 
+} // namespace cartographer_ros

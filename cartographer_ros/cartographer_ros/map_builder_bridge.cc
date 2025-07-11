@@ -552,4 +552,34 @@ void MapBuilderBridge::OnLocalSlamResult(
   trajectory_localization_lost_[trajectory_id] = trajectory_localization_lost;
 }
 
+absl::optional<::cartographer::transform::Rigid2d> MapBuilderBridge::HandlerGlobalRelocalization(int trajectory_id) {
+  // map_builder_->FinishTrajectory(trajectory_id);
+  // get the lasted cloud point from the sensor bridge
+  if (sensor_bridges_.count(trajectory_id) == 0) {
+    LOG(ERROR) << "No sensor bridge found for trajectory ID: " << trajectory_id;
+    return absl::nullopt;
+  }
+  SensorBridge* sensor_bridge = sensor_bridges_[trajectory_id].get();
+  const auto& latest_point_cloud_with_intensities = sensor_bridge->GetLatestPointCloud();
+  // Perform global localization using the latest point cloud.
+  ::cartographer::transform::Rigid2d best_pose_estimate;
+  float best_score = 0.0f;
+  std::vector<::cartographer::sensor::RangefinderPoint> rangefinder_points;
+  // conver TimedPointCloudWithIntensities to PointCloud
+  for (const auto& point_with_intensity : latest_point_cloud_with_intensities.points) {
+    ::cartographer::sensor::RangefinderPoint one_point;
+    one_point.position = point_with_intensity.position;
+    rangefinder_points.emplace_back(std::move(one_point));
+  } 
+  cartographer::sensor::PointCloud latest_point_cloud(rangefinder_points);
+  if (!map_builder_->PerformGlobalLocalization(
+          0.7, latest_point_cloud,
+          &best_pose_estimate, &best_score)) {
+    LOG(ERROR) << "Global localization failed for trajectory ID: "
+               << trajectory_id;
+    return absl::nullopt;
+  }
+  return absl::make_optional<::cartographer::transform::Rigid2d>(best_pose_estimate);
+}
+
 }  // namespace cartographer_ros

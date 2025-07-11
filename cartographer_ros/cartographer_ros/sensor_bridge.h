@@ -76,6 +76,7 @@ class SensorBridge {
   const TfBridge& tf_bridge() const;
   bool IgnoreMessage(const std::string& sensor_id,
                      ::cartographer::common::Time sensor_time);
+  const ::cartographer::sensor::PointCloudWithIntensities GetLatestPointCloud() {return last_point_cloud_;};
 
  private:
   void HandleLaserScan(
@@ -97,6 +98,8 @@ class SensorBridge {
       trajectory_builder_;
 
   absl::optional<::cartographer::transform::Rigid3d> ecef_to_local_frame_;
+
+  ::cartographer::sensor::PointCloudWithIntensities last_point_cloud_;
 };
 
 }  // namespace cartographer_ros

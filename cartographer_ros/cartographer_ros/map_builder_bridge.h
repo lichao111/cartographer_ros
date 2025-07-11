@@ -23,6 +23,7 @@
 #include <unordered_map>
 
 #include "absl/synchronization/mutex.h"
+#include "absl/types/optional.h"
 #include "cartographer/mapping/map_builder_interface.h"
 #include "cartographer/mapping/pose_graph_interface.h"
 #include "cartographer/mapping/proto/trajectory_builder_options.pb.h"
@@ -90,6 +91,8 @@ class MapBuilderBridge {
   void HandleTrajectoryQuery(
       cartographer_ros_msgs::TrajectoryQuery::Request& request,
       cartographer_ros_msgs::TrajectoryQuery::Response& response);
+
+  absl::optional<::cartographer::transform::Rigid2d> HandlerGlobalRelocalization(int trajectory_id);
 
   std::map<int /* trajectory_id */,
            ::cartographer::mapping::PoseGraphInterface::TrajectoryState>

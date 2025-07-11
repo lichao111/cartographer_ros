@@ -46,6 +46,12 @@ constexpr char kLandmarkPosesListTopic[] = "landmark_poses_list";
 constexpr char kConstraintListTopic[] = "constraint_list";
 constexpr char kInitialPoseTopic[] = "initialpose";
 constexpr char kTrajectoryLocalizationLostTopic[] = "trajectory_localization_lost";
+constexpr char kGlobalRelocalizationTopic[] = "global_relocalization";
+
+constexpr char kGlobalRelocalizationStatusTopic[] = "global_relocalization_status";
+constexpr int kGlobalRelocalizationSuccess = 0;
+constexpr int kGlobalRelocalizationFailed = -1;
+
 constexpr double kConstraintPublishPeriodSec = 0.5;
 constexpr double kTopicMismatchCheckDelaySec = 3.0;
 

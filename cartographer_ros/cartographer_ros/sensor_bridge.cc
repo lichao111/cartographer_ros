@@ -188,6 +188,8 @@ void SensorBridge::HandleLaserScanMessage(
   carto::common::Time time;
   std::tie(point_cloud, time) = ToPointCloudWithIntensities(*msg);
   HandleLaserScan(sensor_id, time, msg->header.frame_id, point_cloud);
+  //TimedPointCloud to  cartographer::sensor::PointCloud
+  last_point_cloud_ = point_cloud;
 }
 
 void SensorBridge::HandleMultiEchoLaserScanMessage(
