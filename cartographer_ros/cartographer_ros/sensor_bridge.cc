@@ -284,7 +284,7 @@ void SensorBridge::HandleRangefinder(
   // Convert the pose to the tracking frame.
   cartographer::common::Time time_now = FromRos(::ros::Time(0.));
   auto tracking_from_sensor = tf_bridge_.LookupToTracking(
-      time_now, CheckNoLeadingSlash("base_scan")); // FIXME: how to get the correct frame_id?
+      time_now, CheckNoLeadingSlash("laser")); // FIXME: how to get the correct frame_id?
   if (tracking_from_sensor == nullptr) {
     LOG(WARNING) << "Could not find transform to tracking frame.";
     return pose;  // Return the original pose if transform is not found.
