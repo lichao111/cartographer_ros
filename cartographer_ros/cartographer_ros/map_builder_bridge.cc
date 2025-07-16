@@ -579,7 +579,8 @@ absl::optional<::cartographer::transform::Rigid2d> MapBuilderBridge::HandlerGlob
                << trajectory_id;
     return absl::nullopt;
   }
-  return absl::make_optional<::cartographer::transform::Rigid2d>(best_pose_estimate);
+  ::cartographer::transform::Rigid2d best_pose_estimate_to_tracking = sensor_bridge->GetLaserPoseToTracking(best_pose_estimate);
+  return absl::make_optional<::cartographer::transform::Rigid2d>(best_pose_estimate_to_tracking);
 }
 
 }  // namespace cartographer_ros

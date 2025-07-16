@@ -76,7 +76,12 @@ class SensorBridge {
   const TfBridge& tf_bridge() const;
   bool IgnoreMessage(const std::string& sensor_id,
                      ::cartographer::common::Time sensor_time);
+  std::unique_ptr<::cartographer::transform::Rigid3d> LookupToTracking(
+      ::cartographer::common::Time time, const std::string& frame_id) const {
+    return tf_bridge_.LookupToTracking(time, frame_id);
+  }
   const ::cartographer::sensor::PointCloudWithIntensities GetLatestPointCloud() {return last_point_cloud_;};
+  ::cartographer::transform::Rigid2d GetLaserPoseToTracking(const ::cartographer::transform::Rigid2d& pose) const;
 
  private:
   void HandleLaserScan(

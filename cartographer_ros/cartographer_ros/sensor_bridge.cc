@@ -279,4 +279,35 @@ void SensorBridge::HandleRangefinder(
   }
 }
 
+::cartographer::transform::Rigid2d SensorBridge::GetLaserPoseToTracking(
+  const ::cartographer::transform::Rigid2d& pose) const{
+  // Convert the pose to the tracking frame.
+  cartographer::common::Time time_now = FromRos(::ros::Time(0.));
+  auto tracking_from_sensor = tf_bridge_.LookupToTracking(
+      time_now, CheckNoLeadingSlash("base_scan")); // FIXME: how to get the correct frame_id?
+  if (tracking_from_sensor == nullptr) {
+    LOG(WARNING) << "Could not find transform to tracking frame.";
+    return pose;  // Return the original pose if transform is not found.
+  }
+  LOG(INFO) << "Found transform to tracking frame: "
+            << tracking_from_sensor->DebugString();
+  // convert the tracking_from_sensor to Rigid2d
+  // Note: Rigid2d is a 2D rigid transformation, so we only need the translation and rotation part.
+  // The translation is a 2D vector, and the rotation is an angle in radians.
+  // The Rigid2d constructor takes a translation vector and a rotation angle.
+  // The translation part is the x and y components of the translation vector,
+  // and the rotation part is the angle in radians.
+  ::cartographer::transform::Rigid2d tracking_from_sensor_2d(
+      tracking_from_sensor->translation().head<2>(),
+      std::atan2(tracking_from_sensor->rotation().y(),
+                 tracking_from_sensor->rotation().x()));
+  LOG(INFO) << "Tracking from sensor to tracking frame: "
+            << tracking_from_sensor_2d.translation().x() << ", "
+            << tracking_from_sensor_2d.translation().y() << ", "
+            << tracking_from_sensor_2d.rotation().angle();
+  // Apply the transform to the pose.
+  return pose * tracking_from_sensor_2d;
+}
+
+
 }  // namespace cartographer_ros
