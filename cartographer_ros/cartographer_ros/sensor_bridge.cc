@@ -299,8 +299,8 @@ void SensorBridge::HandleRangefinder(
   // and the rotation part is the angle in radians.
   ::cartographer::transform::Rigid2d tracking_from_sensor_2d(
       tracking_from_sensor->translation().head<2>(),
-      std::atan2(tracking_from_sensor->rotation().y(),
-                 tracking_from_sensor->rotation().x()));
+      std::atan2(tracking_from_sensor->rotation().matrix()(1,0),
+                 tracking_from_sensor->rotation().matrix()(0,0)));
   LOG(INFO) << "Tracking from sensor to tracking frame: "
             << tracking_from_sensor_2d.translation().x() << ", "
             << tracking_from_sensor_2d.translation().y() << ", "
